@@ -1,0 +1,31 @@
+id = "herdr-space-scoped-agents"
+name = "Space-Scoped Agents"
+version = "0.1.0"
+min_herdr_version = "0.7.5"
+description = "Filter the agent panel to only the agents in the currently focused space."
+platforms = ["macos", "linux"]
+
+# Re-apply the current-space filter whenever you switch/focus a space.
+#
+# The filter uses the dynamic `current_workspace_id` context, so the view
+# always tracks whichever space is focused. Re-applying on focus also
+# restores the view after a server restart, since agent views are transient
+# server-side state (not persisted in config.toml).
+[[events]]
+on = "workspace.focused"
+command = ["sh", "run.sh", "apply"]
+
+# Manual toggles, available from the command palette or a keybinding.
+[[actions]]
+id = "enable"
+title = "Space scope: only current space"
+description = "Filter the agent panel to the focused space"
+contexts = ["global"]
+command = ["sh", "run.sh", "apply"]
+
+[[actions]]
+id = "clear"
+title = "Space scope: show all agents"
+description = "Clear the space filter and show agents from every space"
+contexts = ["global"]
+command = ["sh", "run.sh", "clear"]

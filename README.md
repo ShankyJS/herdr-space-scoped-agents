@@ -1,15 +1,17 @@
 # herdr-space-scoped-agents
 
-[![License](https://img.shields.io/github/license/ShankyJS/herdr-space-scoped-agents)](LICENSE)
+[![ci](https://github.com/ShankyJS/herdr-space-scoped-agents/actions/workflows/ci.yml/badge.svg)](https://github.com/ShankyJS/herdr-space-scoped-agents/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/ShankyJS/herdr-space-scoped-agents)](https://github.com/ShankyJS/herdr-space-scoped-agents/releases/latest)
+[![license](https://img.shields.io/github/license/ShankyJS/herdr-space-scoped-agents)](LICENSE)
 
 <p align="center">
-  <a href="#how-it-works">how it works</a> · <a href="#requirements">requirements</a> · <a href="#install">install</a> · <a href="#actions">actions</a> · <a href="#limitations">limitations</a>
+  <a href="#how-it-works">how it works</a> · <a href="#install">install</a> · <a href="#actions">actions</a> · <a href="#windows">windows</a> · <a href="#limitations">limitations</a> · <a href="#build-from-source">build</a>
 </p>
 
 A [herdr](https://herdr.dev) plugin that scopes the **agent panel** to the space
 you're focused on. Only the agents in the current space are listed; switch
 spaces and the panel follows. Notifications, toasts, and every other surface
-stay global — this affects the agent panel and the agent-keybind navigation
+stay global — this touches the agent panel and the agent-keybind navigation
 order only.
 
 Without it, the panel lists every agent across every space at once. In a
@@ -27,48 +29,36 @@ view filtered to the focused space:
 ```
 
 The `current_workspace_id` context makes the view track whichever space has
-focus. Agent views are **transient server-side state** — they are not written to
-`config.toml` and do not survive a server restart. So the plugin also declares a
+focus. Agent views are **transient server-side state** — not written to
+`config.toml`, and dropped on a server restart. So the plugin also declares a
 `workspace.focused` event hook that re-applies the filter on every space switch,
 which additionally restores it after a restart on your first focus.
 
-`space_view.py` speaks the API socket's newline-delimited JSON protocol
-directly, reading the socket path from the `HERDR_SOCKET_PATH` environment
-variable that herdr injects into every plugin command. A small `run.sh` wrapper
-locates a `python3` interpreter so the plugin does not depend on a fixed
-interpreter path.
-
-## Requirements
-
-- **herdr ≥ 0.7.5** — enforced via `min_herdr_version`; older versions lack the
-  `agent.view.*` API and linking is refused.
-- **python3** on `PATH` (or at a common location: `/usr/bin`, `/usr/local/bin`,
-  `/opt/homebrew/bin`). Standard library only — nothing to `pip install`.
-- **A POSIX shell** (`sh`) — present by default on macOS and Linux.
-- **macOS or Linux.** Unix sockets only; see [Limitations](#limitations).
-
-No third-party packages, no build step, no network access.
+The work is done by a small, dependency-free **Go binary** that speaks the API
+socket's newline-delimited JSON protocol — a unix socket on macOS/Linux, a
+named pipe on Windows — reading the socket path from the `HERDR_SOCKET_PATH`
+environment variable herdr injects into every plugin command.
 
 ## Install
-
-### From GitHub
 
 ```bash
 herdr plugin install ShankyJS/herdr-space-scoped-agents
 herdr plugin list
 ```
 
-### Local checkout (development)
+On install, herdr runs a build step that **downloads the prebuilt binary for
+your platform** from the matching [GitHub Release](https://github.com/ShankyJS/herdr-space-scoped-agents/releases)
+and **verifies its SHA-256**. No toolchain required. If no prebuilt exists for
+your platform/version, it falls back to building from source with `go` (see
+[Build from source](#build-from-source)).
 
-```bash
-git clone https://github.com/ShankyJS/herdr-space-scoped-agents
-herdr plugin link ./herdr-space-scoped-agents
-```
+Prebuilt targets: macOS (arm64, x86-64), Linux (arm64, x86-64), Windows
+(arm64, x86-64).
 
-The filter applies automatically the first time you focus a space. To apply it
-immediately, invoke the `enable` action (below).
+The filter applies automatically the first time you focus a space after install.
+To apply it immediately, invoke the `enable` action (below).
 
-**To update**, reinstall — nothing is keyed to the checkout path:
+**Update** by reinstalling:
 
 ```bash
 herdr plugin uninstall herdr-space-scoped-agents && herdr plugin install ShankyJS/herdr-space-scoped-agents
@@ -76,7 +66,7 @@ herdr plugin uninstall herdr-space-scoped-agents && herdr plugin install ShankyJ
 
 ## Actions
 
-Two actions, available from the command palette or a keybinding:
+Two actions, from the command palette or a keybinding:
 
 | Action | Effect |
 | --- | --- |
@@ -84,7 +74,7 @@ Two actions, available from the command palette or a keybinding:
 | `clear`  | Clear the filter and show agents from every space |
 
 Bind them in herdr's `config.toml` (keybindings live in user config, not the
-plugin manifest — note it is `<plugin_id>.<action_id>`):
+plugin manifest; the value is `<plugin_id>.<action_id>`):
 
 ```toml
 [[keys.command]]
@@ -98,6 +88,10 @@ type = "plugin_action"
 command = "herdr-space-scoped-agents.clear"
 ```
 
+On **Windows**, bind the `-windows`-suffixed ids instead
+(`herdr-space-scoped-agents.enable-windows` / `.clear-windows`) — see
+[Windows](#windows).
+
 ## Manage
 
 ```bash
@@ -105,29 +99,32 @@ herdr plugin list
 herdr plugin log list --plugin herdr-space-scoped-agents   # inspect hook runs
 herdr plugin disable herdr-space-scoped-agents             # turn off
 herdr plugin enable  herdr-space-scoped-agents             # turn back on
-herdr plugin unlink  herdr-space-scoped-agents             # remove a local link
-herdr plugin uninstall herdr-space-scoped-agents           # remove a GitHub install
+herdr plugin uninstall herdr-space-scoped-agents           # remove
 ```
 
-Disabling the plugin stops the hook but leaves any active view in place — run
-the `clear` action (or restart herdr) to drop the filter.
+Disabling stops the hook but leaves any active view in place — run `clear` (or
+restart herdr) to drop the filter.
 
-## Example
+## Windows
 
-Given three spaces — **Space A** (2 agents), **Space B** (5 agents), **Space C**
-(no agents):
+Windows is supported, with two platform quirks handled in the manifest (both
+learned from the [herdr-file-viewer](https://github.com/smarzban/herdr-file-viewer)
+plugin's verified findings):
 
-| Focused space | Agent panel shows |
-| --- | --- |
-| Space A | Space A's 2 agents |
-| Space B | Space B's 5 agents |
-| Space C | nothing (`no matching agents`) |
+- **Action ids must be unique across platforms** — herdr rejects duplicate
+  action ids regardless of platform gating. The Windows launchers use the ids
+  `enable-windows` and `clear-windows`; bind those.
+- **Launch by absolute path** — herdr can't reliably spawn a relative program on
+  Windows, so every command invokes the binary through `$HERDR_PLUGIN_ROOT`
+  (stripping the `\\?\` verbatim prefix herdr may report).
+
+> Note: Windows builds are cross-compiled and CI-verified to compile, and use
+> [go-winio](https://github.com/microsoft/go-winio) for the named-pipe
+> transport. Runtime has had less real-hardware testing than macOS/Linux —
+> reports welcome.
 
 ## Limitations
 
-- **Unix sockets only.** `space_view.py` connects with `AF_UNIX`. Windows uses a
-  named-pipe transport this plugin does not implement, so it declares
-  `platforms = ["macos", "linux"]` and will not run on Windows.
 - **Applies on first focus after a restart, not at boot.** herdr has no
   "server started" plugin hook, so after a restart the filter re-applies the
   first time you focus a space. Use the `enable` action for an immediate apply.
@@ -135,6 +132,36 @@ Given three spaces — **Space A** (2 agents), **Space B** (5 agents), **Space C
   `config.toml`; the event hook is what keeps it applied.
 - **Scopes by space only.** It filters on `workspace_id` — not by agent kind,
   status, or tab.
+
+## Build from source
+
+Requires [Go](https://go.dev) 1.22+.
+
+```bash
+git clone https://github.com/ShankyJS/herdr-space-scoped-agents
+cd herdr-space-scoped-agents
+go build -o bin/herdr-space-scoped-agents .   # .exe on Windows
+herdr plugin link .
+```
+
+`herdr plugin link` does not run the install build step, so build the binary
+into `bin/` yourself as above. The manifest launches `bin/herdr-space-scoped-agents`.
+
+Cross-compile any target with `GOOS`/`GOARCH`, e.g.:
+
+```bash
+GOOS=linux GOARCH=arm64 go build -o bin/herdr-space-scoped-agents .
+```
+
+## Trust
+
+herdr plugin listings are discovered automatically from the GitHub topic
+`herdr-plugin` and are **not reviewed by herdr** — install at your own
+discretion. The source is small: one Go program plus the manifest and install
+scripts. It uses only the Go standard library (and go-winio on Windows), makes
+no network calls at runtime, and only talks to your local herdr API socket to
+set/clear the agent-panel view. The install scripts download a checksum-verified
+release binary.
 
 ## License
 

@@ -1,0 +1,42 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Build all targets
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          bin="herdr-space-scoped-agents"
+          mkdir -p dist
+          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
+            os="${target%/*}"; arch="${target#*/}"
+            ext=""; [ "$os" = "windows" ] && ext=".exe"
+            out="dist/${bin}-${os}-${arch}${ext}"
+            echo "building $out"
+            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 \
+              go build -trimpath -ldflags "-s -w -X main.version=${version}" -o "$out" .
+            ( cd dist && sha256sum "$(basename "$out")" > "$(basename "$out").sha256" )
+          done
+          ls -la dist
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

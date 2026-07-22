@@ -1,31 +1,81 @@
+# herdr-plugin.toml — manifest for herdr-space-scoped-agents.
+#
+# Filters the agent panel to the currently focused space by setting a transient
+# declarative agent view (agent.view.set) over the Herdr API socket, and
+# re-applying it on every workspace.focused event.
+#
+# Distribution: [[build]] runs at `herdr plugin install` time. The per-platform
+# fetch-or-build script downloads the prebuilt binary matching this version and
+# platform from GitHub Releases and verifies its SHA-256; on any miss it falls
+# back to `go build` (so a Go toolchain is only needed when no prebuilt exists).
+#
+# Windows notes (following the herdr-file-viewer plugin's verified findings):
+#  - Actions need a UNIQUE id even across platforms — Herdr rejects duplicate
+#    action ids at load time regardless of platform gating. The Windows
+#    launchers therefore use `-windows`-suffixed ids; bind THOSE on Windows.
+#  - Herdr cannot reliably spawn a relative program on Windows, so every
+#    command launches the binary BY ABSOLUTE PATH via $HERDR_PLUGIN_ROOT
+#    (stripping the `\\?\` verbatim prefix Herdr may report).
+
 id = "herdr-space-scoped-agents"
 name = "Space-Scoped Agents"
-version = "0.1.0"
+version = "0.2.0"
 min_herdr_version = "0.7.5"
-description = "Filter the agent panel to only the agents in the currently focused space."
-platforms = ["macos", "linux"]
+description = "Scope the agent panel to the space you're focused on."
+platforms = ["linux", "macos", "windows"]
 
-# Re-apply the current-space filter whenever you switch/focus a space.
-#
-# The filter uses the dynamic `current_workspace_id` context, so the view
-# always tracks whichever space is focused. Re-applying on focus also
-# restores the view after a server restart, since agent views are transient
-# server-side state (not persisted in config.toml).
+# --- Install-time build ------------------------------------------------------
+
+[[build]]
+platforms = ["linux", "macos"]
+command = ["/bin/sh", "scripts/fetch-or-build.sh"]
+
+[[build]]
+platforms = ["windows"]
+command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/fetch-or-build.ps1"]
+
+# --- Automatic behaviour: re-apply the filter on every space switch ----------
+
 [[events]]
 on = "workspace.focused"
-command = ["sh", "run.sh", "apply"]
+platforms = ["linux", "macos"]
+command = ["/bin/sh", "-c", 'exec "$HERDR_PLUGIN_ROOT/bin/herdr-space-scoped-agents" apply']
 
-# Manual toggles, available from the command palette or a keybinding.
+[[events]]
+on = "workspace.focused"
+platforms = ["windows"]
+command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", '''$p=$env:HERDR_PLUGIN_ROOT; if($p -and $p.StartsWith('\\?\')){$p=$p.Substring(4)}; & (Join-Path $p 'bin\herdr-space-scoped-agents.exe') apply''']
+
+# --- Manual toggles (bind to a key or run from the command palette) ----------
+
 [[actions]]
 id = "enable"
+platforms = ["linux", "macos"]
 title = "Space scope: only current space"
 description = "Filter the agent panel to the focused space"
 contexts = ["global"]
-command = ["sh", "run.sh", "apply"]
+command = ["/bin/sh", "-c", 'exec "$HERDR_PLUGIN_ROOT/bin/herdr-space-scoped-agents" apply']
 
 [[actions]]
 id = "clear"
+platforms = ["linux", "macos"]
 title = "Space scope: show all agents"
 description = "Clear the space filter and show agents from every space"
 contexts = ["global"]
-command = ["sh", "run.sh", "clear"]
+command = ["/bin/sh", "-c", 'exec "$HERDR_PLUGIN_ROOT/bin/herdr-space-scoped-agents" clear']
+
+[[actions]]
+id = "enable-windows"
+platforms = ["windows"]
+title = "Space scope: only current space"
+description = "Filter the agent panel to the focused space"
+contexts = ["global"]
+command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", '''$p=$env:HERDR_PLUGIN_ROOT; if($p -and $p.StartsWith('\\?\')){$p=$p.Substring(4)}; & (Join-Path $p 'bin\herdr-space-scoped-agents.exe') apply''']
+
+[[actions]]
+id = "clear-windows"
+platforms = ["windows"]
+title = "Space scope: show all agents"
+description = "Clear the space filter and show agents from every space"
+contexts = ["global"]
+command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", '''$p=$env:HERDR_PLUGIN_ROOT; if($p -and $p.StartsWith('\\?\')){$p=$p.Substring(4)}; & (Join-Path $p 'bin\herdr-space-scoped-agents.exe') clear''']

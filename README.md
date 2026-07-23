@@ -54,7 +54,26 @@ state dir, so it survives space switches and restarts):
 
 The `workspace.focused` hook runs `sync`, which re-asserts whichever mode is
 active. That's what makes **`all` stick** — switching spaces won't silently snap
-you back to scoped. Flip modes with the `enable` / `clear` / `toggle` actions.
+you back to scoped.
+
+#### Switching modes
+
+There is **no config key** to edit (unlike a `ui.*` setting). You set the mode by
+running an action **once**, and it sticks. Three ways, easiest first:
+
+1. **A keybinding** — bind `toggle` to a key (see [Actions](#actions)) and press
+   it to flip `current` ↔ `all`. This is the simplest.
+2. **The command palette / menu** — search **"Space scope"** and pick
+   *only current space*, *show all agents*, or *toggle current/all*.
+3. **The terminal**:
+   ```bash
+   herdr plugin action invoke enable --plugin herdr-space-scoped-agents  # current
+   herdr plugin action invoke clear  --plugin herdr-space-scoped-agents  # all
+   ```
+
+To see which mode is active, look at the agent panel: only the focused space's
+agents (with the **Current space** header) means `current`; every space's agents
+means `all`.
 
 The work is done by a small, dependency-free **Go binary** that speaks the API
 socket's newline-delimited JSON protocol — a unix socket on macOS/Linux, a

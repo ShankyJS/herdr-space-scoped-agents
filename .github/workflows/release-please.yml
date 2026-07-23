@@ -1,0 +1,51 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # Maintains a release PR from conventional commits; on merge it bumps the
+      # version (CHANGELOG.md + herdr-plugin.toml), tags, and creates the
+      # GitHub release. Config: release-please-config.json + manifest.
+      - uses: googleapis/release-please-action@v5
+        id: release
+
+      # Everything below runs only when a release was just created, and uploads
+      # the binaries to the release release-please made (its tag is created with
+      # GITHUB_TOKEN, so it would not trigger a separate tag-push workflow).
+      - uses: actions/checkout@v7
+        if: ${{ steps.release.outputs.release_created }}
+
+      - uses: actions/setup-go@v7
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          go-version: "stable"
+
+      - name: Build and upload release binaries
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${{ steps.release.outputs.tag_name }}"
+          version="${version#v}"
+          bin="herdr-space-scoped-agents"
+          mkdir -p dist
+          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
+            os="${target%/*}"; arch="${target#*/}"
+            ext=""; [ "$os" = "windows" ] && ext=".exe"
+            out="dist/${bin}-${os}-${arch}${ext}"
+            echo "building $out"
+            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 \
+              go build -trimpath -ldflags "-s -w -X main.version=${version}" -o "$out" .
+            ( cd dist && sha256sum "$(basename "$out")" > "$(basename "$out").sha256" )
+          done
+          gh release upload "${{ steps.release.outputs.tag_name }}" dist/* --clobber

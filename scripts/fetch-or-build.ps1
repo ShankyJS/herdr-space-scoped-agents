@@ -15,7 +15,7 @@ if (-not $root) { $root = Split-Path -Parent $PSScriptRoot }
 if ($root.StartsWith('\\?\')) { $root = $root.Substring(4) }
 
 $manifest = Join-Path $root 'herdr-plugin.toml'
-$version = (Select-String -Path $manifest -Pattern '^version\s*=\s*"(.*)"').Matches[0].Groups[1].Value
+$version = (Select-String -Path $manifest -Pattern '^version\s*=\s*"([^"]*)"').Matches[0].Groups[1].Value
 if (-not $version) { Write-Error "cannot read version from $manifest" }
 
 switch -Wildcard ($env:PROCESSOR_ARCHITECTURE) {

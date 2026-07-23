@@ -14,7 +14,7 @@ root="${HERDR_PLUGIN_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}"
 manifest="$root/herdr-plugin.toml"
 out="$root/bin/$BIN"
 
-version="$(sed -n 's/^version *= *"\(.*\)"/\1/p' "$manifest" | head -n1)"
+version="$(sed -n 's/^version *= *"\([^"]*\)".*/\1/p' "$manifest" | head -n1)"
 [ -n "$version" ] || { echo "cannot read version from $manifest" >&2; exit 1; }
 
 case "$(uname -s)" in

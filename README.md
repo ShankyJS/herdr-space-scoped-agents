@@ -153,6 +153,16 @@ Cross-compile any target with `GOOS`/`GOARCH`, e.g.:
 GOOS=linux GOARCH=arm64 go build -o bin/herdr-space-scoped-agents .
 ```
 
+## Releasing
+
+Releases are automated with [release-please](https://github.com/googleapis/release-please-action).
+Write [Conventional Commits](https://www.conventionalcommits.org/) on `main`
+(`fix:` → patch, `feat:` → minor, `feat!:`/`BREAKING CHANGE` → major). release-please
+maintains a **release PR** that bumps the version (in `CHANGELOG.md` and
+`herdr-plugin.toml`) from those commits. Merging that PR tags the version,
+creates the GitHub release, and builds + uploads the binaries — no manual
+version, changelog, or tag steps.
+
 ## Trust
 
 herdr plugin listings are discovered automatically from the GitHub topic

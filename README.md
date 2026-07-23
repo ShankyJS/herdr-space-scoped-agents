@@ -65,9 +65,9 @@ running an action **once**, and it sticks. Two ways:
    [Actions](#actions)) and press it to flip `current` ↔ `all`.
 2. **The terminal**:
    ```bash
-   herdr plugin action invoke enable --plugin herdr-space-scoped-agents  # current
-   herdr plugin action invoke clear  --plugin herdr-space-scoped-agents  # all
-   herdr plugin action invoke toggle --plugin herdr-space-scoped-agents  # flip
+   herdr plugin action invoke current --plugin herdr-space-scoped-agents  # scope
+   herdr plugin action invoke all     --plugin herdr-space-scoped-agents  # show all
+   herdr plugin action invoke toggle  --plugin herdr-space-scoped-agents  # flip
    ```
 
 Herdr's actions are also invokable however your Herdr version surfaces plugin
@@ -99,7 +99,7 @@ Prebuilt targets: macOS (arm64, x86-64), Linux (arm64, x86-64), Windows
 (arm64, x86-64).
 
 The filter applies automatically the first time you focus a space after install.
-To apply it immediately, invoke the `enable` action (below).
+To apply it immediately, invoke the `current` action (below).
 
 **Update** by reinstalling:
 
@@ -114,9 +114,9 @@ sets the persisted mode (above), so the choice sticks:
 
 | Action | Effect |
 | --- | --- |
-| `enable` | Mode `current` — scope to the focused space |
-| `clear`  | Mode `all` — show agents from every space |
-| `toggle` | Flip between `current` and `all` |
+| `current` | Scope to the focused space |
+| `all`     | Show agents from every space |
+| `toggle`  | Flip between `current` and `all` |
 
 Bind them in herdr's `config.toml` (keybindings live in user config, not the
 plugin manifest; the value is `<plugin_id>.<action_id>`):
@@ -130,11 +130,11 @@ command = "herdr-space-scoped-agents.toggle"
 [[keys.command]]
 key = "prefix+F"
 type = "plugin_action"
-command = "herdr-space-scoped-agents.clear"
+command = "herdr-space-scoped-agents.all"
 ```
 
 On **Windows**, bind the `-windows`-suffixed ids instead
-(`herdr-space-scoped-agents.enable-windows` / `.clear-windows` /
+(`herdr-space-scoped-agents.current-windows` / `.all-windows` /
 `.toggle-windows`) — see [Windows](#windows).
 
 ## Manage
@@ -147,8 +147,8 @@ herdr plugin enable  herdr-space-scoped-agents             # turn back on
 herdr plugin uninstall herdr-space-scoped-agents           # remove
 ```
 
-Disabling stops the hook but leaves any active view in place — run `clear` (or
-restart herdr) to drop the filter.
+Disabling stops the hook but leaves any active view in place — run the `all`
+action (or restart herdr) to drop the filter.
 
 ## Windows
 
@@ -158,7 +158,7 @@ plugin's verified findings):
 
 - **Action ids must be unique across platforms** — herdr rejects duplicate
   action ids regardless of platform gating. The Windows launchers use the ids
-  `enable-windows`, `clear-windows`, and `toggle-windows`; bind those.
+  `current-windows`, `all-windows`, and `toggle-windows`; bind those.
 - **Launch by absolute path** — herdr can't reliably spawn a relative program on
   Windows, so every command invokes the binary through `$HERDR_PLUGIN_ROOT`
   (stripping the `\\?\` verbatim prefix herdr may report).

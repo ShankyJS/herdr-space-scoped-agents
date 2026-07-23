@@ -7,11 +7,13 @@
 // it sticks across space switches and server restarts; the workspace.focused
 // hook calls "sync" to (re)assert whichever mode is active.
 //
-//	herdr-space-scoped-agents apply    # mode=current: scope to the focused space
-//	herdr-space-scoped-agents clear     # mode=all: show agents from every space
+//	herdr-space-scoped-agents current   # scope to the focused space
+//	herdr-space-scoped-agents all       # show agents from every space
 //	herdr-space-scoped-agents toggle    # flip between current and all
 //	herdr-space-scoped-agents sync      # apply whatever mode is persisted (hook)
 //	herdr-space-scoped-agents status    # print the persisted mode
+//
+// (apply/enable and clear/disable remain accepted aliases for current/all.)
 package main
 
 import (
@@ -172,7 +174,7 @@ func applyMode(mode string) (map[string]any, error) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s <apply|clear|toggle|sync|status|version>\n", filepath.Base(os.Args[0]))
+	fmt.Fprintf(os.Stderr, "usage: %s <current|all|toggle|sync|status|version>\n", filepath.Base(os.Args[0]))
 }
 
 func main() {
@@ -186,10 +188,10 @@ func main() {
 		err  error
 	)
 	switch action {
-	case "apply", "enable":
+	case "current", "apply", "enable":
 		writeMode(modeCurrent)
 		resp, err = applyView()
-	case "clear", "disable":
+	case "all", "clear", "disable":
 		writeMode(modeAll)
 		resp, err = clearView()
 	case "toggle":

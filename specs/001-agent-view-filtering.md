@@ -41,8 +41,9 @@ dir (`HERDR_PLUGIN_STATE_DIR/mode`), defaulting to `current`:
 - The hook runs `sync`, which reads the mode and either applies the filter
   (`current`) or clears it (`all`). This is what makes an `all` choice **stick**
   instead of being overwritten on the next focus change.
-- Actions: `enable` → `current`, `clear` → `all`, `toggle` → flip. Each writes
-  the mode and applies immediately.
+- Actions: `current`, `all`, `toggle`. Each writes the mode and applies
+  immediately. (`apply`/`enable` and `clear`/`disable` remain binary aliases for
+  `current`/`all`.)
 
 The default is `current` (not `all` as the core-config proposal suggested)
 because installing this plugin is itself the opt-in — you added it to scope the

@@ -1,12 +1,17 @@
-// Command herdr-space-scoped-agents sets or clears a transient Herdr "agent
-// view" that filters the agent panel to the currently focused space.
+// Command herdr-space-scoped-agents scopes Herdr's agent panel to the focused
+// space (or shows every space), by driving Herdr's transient "agent view" over
+// the local API socket named by $HERDR_SOCKET_PATH (a unix socket on
+// macOS/Linux, a named pipe on Windows).
 //
-// It speaks Herdr's newline-delimited JSON API protocol directly over the
-// local socket named by $HERDR_SOCKET_PATH (a unix socket on macOS/Linux, a
-// named pipe on Windows).
+// The chosen mode ("current" or "all") is persisted in the plugin state dir so
+// it sticks across space switches and server restarts; the workspace.focused
+// hook calls "sync" to (re)assert whichever mode is active.
 //
-//	herdr-space-scoped-agents apply   # filter the panel to the focused space
-//	herdr-space-scoped-agents clear   # show agents from every space again
+//	herdr-space-scoped-agents apply    # mode=current: scope to the focused space
+//	herdr-space-scoped-agents clear     # mode=all: show agents from every space
+//	herdr-space-scoped-agents toggle    # flip between current and all
+//	herdr-space-scoped-agents sync      # apply whatever mode is persisted (hook)
+//	herdr-space-scoped-agents status    # print the persisted mode
 package main
 
 import (
@@ -15,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -26,6 +32,9 @@ var version = "dev"
 const (
 	source = "herdr-space-scoped-agents"
 	label  = "Current space"
+
+	modeCurrent = "current" // scope the panel to the focused space
+	modeAll     = "all"     // show agents from every space
 )
 
 type request struct {
@@ -51,6 +60,52 @@ func socketPath() string {
 		return ""
 	}
 	return filepath.Join(home, ".config", "herdr", "herdr.sock")
+}
+
+// modeFile returns the path of the persisted-mode file, or "" if no writable
+// location is known (manual runs outside a plugin hook).
+func modeFile() string {
+	dir := os.Getenv("HERDR_PLUGIN_STATE_DIR")
+	if dir == "" {
+		dir = os.Getenv("HERDR_PLUGIN_CONFIG_DIR")
+	}
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, "mode")
+}
+
+// readMode returns the persisted mode, defaulting to "current" (this plugin is
+// installed specifically to scope the panel, so scoping is the sensible default).
+func readMode() string {
+	path := modeFile()
+	if path == "" {
+		return modeCurrent
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return modeCurrent
+	}
+	if strings.TrimSpace(string(data)) == modeAll {
+		return modeAll
+	}
+	return modeCurrent
+}
+
+// writeMode persists the mode (best-effort; a failure is reported but does not
+// abort the view change).
+func writeMode(mode string) {
+	path := modeFile()
+	if path == "" {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not create state dir: %v\n", source, err)
+		return
+	}
+	if err := os.WriteFile(path, []byte(mode+"\n"), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not persist mode: %v\n", source, err)
+	}
 }
 
 // call sends one request and returns the decoded response object.
@@ -90,7 +145,8 @@ func call(method string, params any) (map[string]any, error) {
 	return resp, nil
 }
 
-func apply() (map[string]any, error) {
+// applyView filters the agent panel to the focused space.
+func applyView() (map[string]any, error) {
 	return call("agent.view.set", map[string]any{
 		"source": source,
 		"label":  label,
@@ -102,16 +158,25 @@ func apply() (map[string]any, error) {
 	})
 }
 
-func clear() (map[string]any, error) {
+// clearView removes this plugin's view, showing agents from every space.
+func clearView() (map[string]any, error) {
 	return call("agent.view.clear", map[string]any{"source": source})
 }
 
+// applyMode performs the view change for the given mode.
+func applyMode(mode string) (map[string]any, error) {
+	if mode == modeAll {
+		return clearView()
+	}
+	return applyView()
+}
+
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s <apply|clear|version>\n", filepath.Base(os.Args[0]))
+	fmt.Fprintf(os.Stderr, "usage: %s <apply|clear|toggle|sync|status|version>\n", filepath.Base(os.Args[0]))
 }
 
 func main() {
-	action := "apply"
+	action := "sync"
 	if len(os.Args) > 1 {
 		action = os.Args[1]
 	}
@@ -122,9 +187,24 @@ func main() {
 	)
 	switch action {
 	case "apply", "enable":
-		resp, err = apply()
+		writeMode(modeCurrent)
+		resp, err = applyView()
 	case "clear", "disable":
-		resp, err = clear()
+		writeMode(modeAll)
+		resp, err = clearView()
+	case "toggle":
+		mode := modeCurrent
+		if readMode() == modeCurrent {
+			mode = modeAll
+		}
+		writeMode(mode)
+		resp, err = applyMode(mode)
+	case "sync":
+		// Used by the workspace.focused hook: assert whatever mode is persisted.
+		resp, err = applyMode(readMode())
+	case "status":
+		fmt.Println(readMode())
+		return
 	case "version", "--version", "-v":
 		fmt.Println(version)
 		return

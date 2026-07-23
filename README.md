@@ -41,8 +41,20 @@ view filtered to the focused space:
 The `current_workspace_id` context makes the view track whichever space has
 focus. Agent views are **transient server-side state** — not written to
 `config.toml`, and dropped on a server restart. So the plugin also declares a
-`workspace.focused` event hook that re-applies the filter on every space switch,
-which additionally restores it after a restart on your first focus.
+`workspace.focused` event hook that re-asserts the active mode on every space
+switch, which additionally restores it after a restart on your first focus.
+
+### Modes
+
+The plugin has two modes, and your choice **persists** (stored in the plugin
+state dir, so it survives space switches and restarts):
+
+- **`current`** (default) — scope the panel to the focused space.
+- **`all`** — show agents from every space.
+
+The `workspace.focused` hook runs `sync`, which re-asserts whichever mode is
+active. That's what makes **`all` stick** — switching spaces won't silently snap
+you back to scoped. Flip modes with the `enable` / `clear` / `toggle` actions.
 
 The work is done by a small, dependency-free **Go binary** that speaks the API
 socket's newline-delimited JSON protocol — a unix socket on macOS/Linux, a
@@ -76,12 +88,14 @@ herdr plugin uninstall herdr-space-scoped-agents && herdr plugin install ShankyJ
 
 ## Actions
 
-Two actions, from the command palette or a keybinding:
+Three actions, from the command palette or a keybinding. Each sets the
+persisted mode (above), so the choice sticks:
 
 | Action | Effect |
 | --- | --- |
-| `enable` | Apply the current-space filter now |
-| `clear`  | Clear the filter and show agents from every space |
+| `enable` | Mode `current` — scope to the focused space |
+| `clear`  | Mode `all` — show agents from every space |
+| `toggle` | Flip between `current` and `all` |
 
 Bind them in herdr's `config.toml` (keybindings live in user config, not the
 plugin manifest; the value is `<plugin_id>.<action_id>`):
@@ -90,7 +104,7 @@ plugin manifest; the value is `<plugin_id>.<action_id>`):
 [[keys.command]]
 key = "prefix+f"
 type = "plugin_action"
-command = "herdr-space-scoped-agents.enable"
+command = "herdr-space-scoped-agents.toggle"
 
 [[keys.command]]
 key = "prefix+F"
@@ -99,8 +113,8 @@ command = "herdr-space-scoped-agents.clear"
 ```
 
 On **Windows**, bind the `-windows`-suffixed ids instead
-(`herdr-space-scoped-agents.enable-windows` / `.clear-windows`) — see
-[Windows](#windows).
+(`herdr-space-scoped-agents.enable-windows` / `.clear-windows` /
+`.toggle-windows`) — see [Windows](#windows).
 
 ## Manage
 
@@ -123,7 +137,7 @@ plugin's verified findings):
 
 - **Action ids must be unique across platforms** — herdr rejects duplicate
   action ids regardless of platform gating. The Windows launchers use the ids
-  `enable-windows` and `clear-windows`; bind those.
+  `enable-windows`, `clear-windows`, and `toggle-windows`; bind those.
 - **Launch by absolute path** — herdr can't reliably spawn a relative program on
   Windows, so every command invokes the binary through `$HERDR_PLUGIN_ROOT`
   (stripping the `\\?\` verbatim prefix herdr may report).
@@ -135,11 +149,13 @@ plugin's verified findings):
 
 ## Limitations
 
-- **Applies on first focus after a restart, not at boot.** herdr has no
-  "server started" plugin hook, so after a restart the filter re-applies the
-  first time you focus a space. Use the `enable` action for an immediate apply.
-- **Transient by design.** The view lives in the running server, not in
-  `config.toml`; the event hook is what keeps it applied.
+- **Re-asserts on first focus after a restart, not at boot.** herdr has no
+  "server started" plugin hook, so after a restart the active mode is re-applied
+  the first time you focus a space. Run an action for an immediate apply.
+- **The view is transient; the mode is not.** The agent view itself lives in the
+  running server (not `config.toml`), so the hook re-asserts it — but your chosen
+  mode (`current`/`all`) is persisted in the plugin state dir and survives
+  restarts.
 - **Scopes by space only.** It filters on `workspace_id` — not by agent kind,
   status, or tab.
 

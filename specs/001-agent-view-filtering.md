@@ -27,13 +27,26 @@ the server, so the view tracks whichever space has focus rather than being pinne
 to one id.
 
 Because agent views are **transient server-side state** — not persisted to
-`config.toml`, and dropped when the server restarts — the plugin also registers a
-`workspace.focused` **event hook** that re-applies the filter on every space
-switch. That keeps the filter correct across switches and re-establishes it after
-a server restart (on the first focus).
+`config.toml`, and dropped when the server restarts — the plugin registers a
+`workspace.focused` **event hook** that re-asserts the active state on every
+space switch, and re-establishes it after a restart (on the first focus).
 
-Two manual actions, `enable` (apply) and `clear` (`agent.view.clear`), let the
-user toggle it from the command palette or a keybinding.
+### Persistent mode (current / all)
+
+The original idea (herdr discussion #1406) and the earlier fork prototype were a
+*configurable* toggle: `"all"` vs `"current"`. To match that — rather than being
+unconditionally always-on — the plugin persists a **mode** in the plugin state
+dir (`HERDR_PLUGIN_STATE_DIR/mode`), defaulting to `current`:
+
+- The hook runs `sync`, which reads the mode and either applies the filter
+  (`current`) or clears it (`all`). This is what makes an `all` choice **stick**
+  instead of being overwritten on the next focus change.
+- Actions: `enable` → `current`, `clear` → `all`, `toggle` → flip. Each writes
+  the mode and applies immediately.
+
+The default is `current` (not `all` as the core-config proposal suggested)
+because installing this plugin is itself the opt-in — you added it to scope the
+panel.
 
 ## Rationale / alternatives
 

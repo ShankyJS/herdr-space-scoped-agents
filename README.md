@@ -59,17 +59,19 @@ you back to scoped.
 #### Switching modes
 
 There is **no config key** to edit (unlike a `ui.*` setting). You set the mode by
-running an action **once**, and it sticks. Three ways, easiest first:
+running an action **once**, and it sticks. Two ways:
 
-1. **A keybinding** — bind `toggle` to a key (see [Actions](#actions)) and press
-   it to flip `current` ↔ `all`. This is the simplest.
-2. **The command palette / menu** — search **"Space scope"** and pick
-   *only current space*, *show all agents*, or *toggle current/all*.
-3. **The terminal**:
+1. **A keybinding** (recommended) — bind `toggle` to a key (see
+   [Actions](#actions)) and press it to flip `current` ↔ `all`.
+2. **The terminal**:
    ```bash
    herdr plugin action invoke enable --plugin herdr-space-scoped-agents  # current
    herdr plugin action invoke clear  --plugin herdr-space-scoped-agents  # all
+   herdr plugin action invoke toggle --plugin herdr-space-scoped-agents  # flip
    ```
+
+Herdr's actions are also invokable however your Herdr version surfaces plugin
+actions; a keybinding is the most reliable trigger.
 
 To see which mode is active, look at the agent panel: only the focused space's
 agents (with the **Current space** header) means `current`; every space's agents
@@ -107,8 +109,8 @@ herdr plugin uninstall herdr-space-scoped-agents && herdr plugin install ShankyJ
 
 ## Actions
 
-Three actions, from the command palette or a keybinding. Each sets the
-persisted mode (above), so the choice sticks:
+Three actions, invokable via a keybinding or `herdr plugin action invoke`. Each
+sets the persisted mode (above), so the choice sticks:
 
 | Action | Effect |
 | --- | --- |

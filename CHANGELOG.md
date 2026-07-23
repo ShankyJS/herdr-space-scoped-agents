@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0](https://github.com/ShankyJS/herdr-space-scoped-agents/compare/v0.5.0...v0.6.0) (2026-07-23)
+
+
+### Features
+
+* rename actions to current/all/toggle ([c67816b](https://github.com/ShankyJS/herdr-space-scoped-agents/commit/c67816b8c41b1bd9e8020e8a7be1b7fc6a3fd4ca))
+
 ## [0.5.0](https://github.com/ShankyJS/herdr-space-scoped-agents/compare/v0.4.0...v0.5.0) (2026-07-23)
 
 

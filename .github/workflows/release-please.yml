@@ -18,9 +18,12 @@ jobs:
       - uses: googleapis/release-please-action@v5
         id: release
 
-      # Everything below runs only when a release was just created, and uploads
-      # the binaries to the release release-please made (its tag is created with
-      # GITHUB_TOKEN, so it would not trigger a separate tag-push workflow).
+      # Everything below runs only when release-please actually cut a release.
+      # release-please creates it as a DRAFT (see "draft": true in the config),
+      # which does NOT create the git tag yet. We build every target first; only
+      # if all builds and uploads succeed do we publish the draft — that final
+      # step is what creates the tag and marks the release latest. A failed build
+      # therefore leaves an unpublished draft with no tag: no real release.
       - uses: actions/checkout@v7
         if: ${{ steps.release.outputs.release_created }}
 
@@ -29,16 +32,18 @@ jobs:
         with:
           go-version: "stable"
 
-      - name: Build and upload release binaries
+      - name: Build, upload, then publish the release
         if: ${{ steps.release.outputs.release_created }}
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag_name }}
         run: |
           set -euo pipefail
-          version="${{ steps.release.outputs.tag_name }}"
-          version="${version#v}"
+          version="${TAG#v}"
           bin="herdr-space-scoped-agents"
           mkdir -p dist
+
+          # 1. Build all targets (fails the job before anything is published).
           for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
             os="${target%/*}"; arch="${target#*/}"
             ext=""; [ "$os" = "windows" ] && ext=".exe"
@@ -48,4 +53,9 @@ jobs:
               go build -trimpath -ldflags "-s -w -X main.version=${version}" -o "$out" .
             ( cd dist && sha256sum "$(basename "$out")" > "$(basename "$out").sha256" )
           done
-          gh release upload "${{ steps.release.outputs.tag_name }}" dist/* --clobber
+
+          # 2. Attach the verified assets to the draft.
+          gh release upload "$TAG" dist/* --clobber
+
+          # 3. Publish the draft — this creates the tag and marks it latest.
+          gh release edit "$TAG" --draft=false --latest

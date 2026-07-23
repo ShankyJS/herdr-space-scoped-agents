@@ -4,6 +4,7 @@
     ".": {
       "release-type": "go",
       "include-component-in-tag": false,
+      "draft": true,
       "extra-files": [
         {
           "type": "generic",

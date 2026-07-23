@@ -22,16 +22,29 @@ Conventional Commits:
   `CHANGELOG.md` and `herdr-plugin.toml` (via a `generic` extra-files updater on
   the `# x-release-please-version` marker) and `.release-please-manifest.json`.
   This keeps the manifest and tag in lockstep, killing failure mode 2.
-- Merging the release PR creates the release **as a draft** (`"draft": true`).
-  A draft release does **not** create the git tag.
-- The same workflow then builds all six targets, uploads them, and only on
-  success runs `gh release edit --draft=false --latest`, which is what creates
-  the tag and marks the release latest. A failed build leaves an unpublished
-  draft with no tag — no real release ships. This kills failure mode 1.
+- Merging the release PR makes release-please create the published, tagged
+  GitHub release itself. The same workflow then builds all six targets and
+  attaches them to that release.
 
 The build is folded into the release-please workflow (not a separate
 tag-triggered one) because a tag created with the default `GITHUB_TOKEN` does
 not trigger other workflows.
+
+Failure mode 1 is handled at the **PR** stage instead of the publish stage:
+`ci.yml` cross-compiles all six targets on the release PR, so a broken build
+blocks the merge. The publish-time build is the same code that already passed.
+
+### Lesson: do not use `draft: true` here
+
+An earlier version created the release as a draft, built, then flipped it to
+published — the idea being "no tagged release exists unless the build passes."
+It **backfired**: release-please creates a draft *without* a tag, our workflow
+added the tag out-of-band afterward, and release-please then lost the
+SHA↔release correlation it uses to find the previous release's baseline. The
+result was a **release loop** — every merged release PR spawned another
+`minor` bump that re-listed already-shipped commits (v0.3.0 → 0.4.0 → 0.5.0…).
+Removing `draft: true` (release-please creates the tag itself) fixed it. The
+build-safety goal is met by CI-on-the-PR instead.
 
 ## Rationale / alternatives
 

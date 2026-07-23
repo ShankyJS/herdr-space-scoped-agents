@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/github/license/ShankyJS/herdr-space-scoped-agents)](LICENSE)
 
 <p align="center">
-  <a href="#how-it-works">how it works</a> · <a href="#install">install</a> · <a href="#actions">actions</a> · <a href="#windows">windows</a> · <a href="#limitations">limitations</a> · <a href="#build-from-source">build</a>
+  <a href="#how-it-works">how it works</a> · <a href="#install">install</a> · <a href="#actions">actions</a> · <a href="#windows">windows</a> · <a href="#limitations">limitations</a> · <a href="#build-from-source">build</a> · <a href="specs/">specs</a>
 </p>
 
 A [herdr](https://herdr.dev) plugin that scopes the **agent panel** to the space
@@ -16,6 +16,16 @@ order only.
 
 Without it, the panel lists every agent across every space at once. In a
 workspace with many spaces and many agents, the panel you care about is buried.
+
+## What it looks like
+
+The agent panel header reads **Current space**, and only the focused space's
+agents are listed. Switch to a space with no agents and the panel simply shows
+`no matching agents` — nothing from other spaces leaks in.
+
+| Focused on a space with agents | Focused on a space with none |
+| :---: | :---: |
+| ![Agent panel scoped to the current space, listing only that space's agents](assets/current-space-agents.png) | ![Agent panel on a space with no agents, showing "no matching agents"](assets/current-space-empty.png) |
 
 ## How it works
 
@@ -162,6 +172,12 @@ maintains a **release PR** that bumps the version (in `CHANGELOG.md` and
 `herdr-plugin.toml`) from those commits. Merging that PR tags the version,
 creates the GitHub release, and builds + uploads the binaries — no manual
 version, changelog, or tag steps.
+
+## Design & decisions
+
+The engineering decisions behind this plugin — why it's a plugin at all, how the
+filtering works, why Go, how it's distributed, Windows handling, and release
+automation — are written up in [`specs/`](specs/), one topic per doc.
 
 ## Trust
 

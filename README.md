@@ -135,7 +135,7 @@ plugin's verified findings):
 
 ## Build from source
 
-Requires [Go](https://go.dev) 1.22+.
+Requires [Go](https://go.dev) 1.26+.
 
 ```bash
 git clone https://github.com/ShankyJS/herdr-space-scoped-agents

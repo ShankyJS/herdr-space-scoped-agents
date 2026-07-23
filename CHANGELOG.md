@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI: bump `actions/checkout` to v7, `actions/setup-go` to v7, and
   `softprops/action-gh-release` to v3 (Node 24 runtime; clears the Node 20
   deprecation warnings).
+- Build on the latest stable Go; `go.mod` now targets Go 1.26.
 
 ## [0.2.0] - 2026-07-22
 

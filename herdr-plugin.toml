@@ -19,7 +19,7 @@
 
 id = "herdr-space-scoped-agents"
 name = "Space-Scoped Agents"
-version = "0.2.0"
+version = "0.2.1"
 min_herdr_version = "0.7.5"
 description = "Scope the agent panel to the space you're focused on."
 platforms = ["linux", "macos", "windows"]

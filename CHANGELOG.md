@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-22
+
 ### Added
 - This changelog.
 
@@ -32,5 +34,6 @@ Initial public release.
 - Install-time fetch-or-build: download the verified prebuilt, or build from
   source with Go when no prebuilt is available.
 
-[Unreleased]: https://github.com/ShankyJS/herdr-space-scoped-agents/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ShankyJS/herdr-space-scoped-agents/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/ShankyJS/herdr-space-scoped-agents/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/ShankyJS/herdr-space-scoped-agents/releases/tag/v0.2.0

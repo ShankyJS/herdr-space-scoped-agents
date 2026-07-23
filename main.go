@@ -41,6 +41,11 @@ func socketPath() string {
 	if p := os.Getenv("HERDR_SOCKET_PATH"); p != "" {
 		return p
 	}
+	// Fallback for manual runs outside a plugin hook: honor XDG_CONFIG_HOME the
+	// same way Herdr locates its own config, before defaulting to ~/.config.
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		return filepath.Join(xdg, "herdr", "herdr.sock")
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""

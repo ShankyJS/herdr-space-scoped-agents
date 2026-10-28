@@ -10,8 +10,10 @@ hardware). We want Windows to work rather than be declared unsupported.
 ## Decision
 
 1. **Transport.** `ipc_windows.go` dials the named pipe with
-   `winio.DialPipe(path, …)` (from go-winio), where `path` is the
-   `HERDR_SOCKET_PATH` value Herdr provides. Unix uses `net.Dial("unix", …)`.
+   `winio.DialPipe(path, …)` (from go-winio). Herdr sets `HERDR_SOCKET_PATH` to
+   a file path (e.g. `C:\…\herdr\herdr.sock`), and the pipe is that path under
+   `\\.\pipe\`, the same name Herdr's own integrations dial, so `path` is
+   `\\.\pipe\` + `HERDR_SOCKET_PATH`. Unix uses `net.Dial("unix", …)`.
    Both are selected by build tags so each OS compiles only its own transport.
 
 2. **Unique action ids per platform.** Herdr rejects duplicate action ids at

@@ -1,19 +1,27 @@
 // Command herdr-space-scoped-agents scopes Herdr's agent panel to the focused
-// space (or shows every space), by driving Herdr's transient "agent view" over
-// the local API socket named by $HERDR_SOCKET_PATH (a unix socket on
-// macOS/Linux, a named pipe on Windows).
+// space, the focused machine, or shows everything, by driving Herdr's transient
+// "agent view" over the local API socket named by $HERDR_SOCKET_PATH (a unix
+// socket on macOS/Linux, a named pipe on Windows).
 //
-// The chosen mode ("current" or "all") is persisted in the plugin state dir so
-// it sticks across space switches and server restarts; the workspace.focused
-// hook calls "sync" to (re)assert whichever mode is active.
+// The chosen mode ("current", "machine" or "all") is persisted in the plugin
+// state dir so it sticks across space switches and server restarts; the startup
+// and workspace hooks call "sync" to (re)assert whichever mode is active.
 //
 //	herdr-space-scoped-agents current   # scope to the focused space
+//	herdr-space-scoped-agents machine   # scope to the focused machine
 //	herdr-space-scoped-agents all       # show agents from every space
-//	herdr-space-scoped-agents toggle    # flip between current and all
+//	herdr-space-scoped-agents cycle     # all -> current -> machine -> all
+//	herdr-space-scoped-agents toggle    # alias for cycle
 //	herdr-space-scoped-agents sync      # apply whatever mode is persisted (hook)
 //	herdr-space-scoped-agents status    # print the persisted mode
 //
 // (apply/enable and clear/disable remain accepted aliases for current/all.)
+//
+// Machine mode: with saved SSH machines the client evaluates the *selected*
+// machine's view against every machine's agents, and workspace ids are scoped
+// to the machine they came from. Listing this server's workspace ids therefore
+// matches only this machine's agents. Each machine needs this plugin installed
+// for its own view to exist.
 package main
 
 import (
@@ -32,12 +40,18 @@ var version = "dev"
 // source identifies this plugin as the owner of the agent view, so it can be
 // cleared without disturbing views set by anything else.
 const (
-	source = "herdr-space-scoped-agents"
-	label  = "Current space"
-
+	source      = "herdr-space-scoped-agents"
 	modeCurrent = "current" // scope the panel to the focused space
+	modeMachine = "machine" // scope the panel to the focused machine
 	modeAll     = "all"     // show agents from every space
 )
+
+// nextMode is the cycle order for the cycle/toggle action.
+var nextMode = map[string]string{
+	modeAll:     modeCurrent,
+	modeCurrent: modeMachine,
+	modeMachine: modeAll,
+}
 
 type request struct {
 	ID     string `json:"id"`
@@ -88,8 +102,8 @@ func readMode() string {
 	if err != nil {
 		return modeCurrent
 	}
-	if strings.TrimSpace(string(data)) == modeAll {
-		return modeAll
+	if mode := strings.TrimSpace(string(data)); nextMode[mode] != "" {
+		return mode
 	}
 	return modeCurrent
 }
@@ -151,13 +165,45 @@ func call(method string, params any) (map[string]any, error) {
 func applyView() (map[string]any, error) {
 	return call("agent.view.set", map[string]any{
 		"source": source,
-		"label":  label,
+		"label":  "Current space",
 		"filter": map[string]any{
 			"op":    "eq",
 			"field": "workspace_id",
 			"value": map[string]any{"context": "current_workspace_id"},
 		},
 	})
+}
+
+// applyMachineView filters the agent panel to this server's workspaces, i.e.
+// the focused machine. The id list goes stale when spaces are created or
+// closed, so the manifest re-syncs on those events.
+func applyMachineView() (map[string]any, error) {
+	resp, err := call("workspace.list", map[string]any{})
+	if err != nil {
+		return nil, err
+	}
+	ids := workspaceIDs(resp)
+	return call("agent.view.set", map[string]any{
+		"source": source,
+		"label":  "Current machine",
+		"filter": map[string]any{"op": "in", "field": "workspace_id", "values": ids},
+	})
+}
+
+// workspaceIDs extracts result.workspaces[].workspace_id from a workspace.list
+// response. Always non-nil so it marshals as [] rather than null.
+func workspaceIDs(resp map[string]any) []string {
+	ids := []string{}
+	result, _ := resp["result"].(map[string]any)
+	list, _ := result["workspaces"].([]any)
+	for _, w := range list {
+		if ws, ok := w.(map[string]any); ok {
+			if id, ok := ws["workspace_id"].(string); ok {
+				ids = append(ids, id)
+			}
+		}
+	}
+	return ids
 }
 
 // clearView removes this plugin's view, showing agents from every space.
@@ -167,14 +213,17 @@ func clearView() (map[string]any, error) {
 
 // applyMode performs the view change for the given mode.
 func applyMode(mode string) (map[string]any, error) {
-	if mode == modeAll {
+	switch mode {
+	case modeAll:
 		return clearView()
+	case modeMachine:
+		return applyMachineView()
 	}
 	return applyView()
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s <current|all|toggle|sync|status|version>\n", filepath.Base(os.Args[0]))
+	fmt.Fprintf(os.Stderr, "usage: %s <current|machine|all|cycle|toggle|sync|status|version>\n", filepath.Base(os.Args[0]))
 }
 
 func main() {
@@ -191,14 +240,14 @@ func main() {
 	case "current", "apply", "enable":
 		writeMode(modeCurrent)
 		resp, err = applyView()
+	case "machine":
+		writeMode(modeMachine)
+		resp, err = applyMachineView()
 	case "all", "clear", "disable":
 		writeMode(modeAll)
 		resp, err = clearView()
-	case "toggle":
-		mode := modeCurrent
-		if readMode() == modeCurrent {
-			mode = modeAll
-		}
+	case "cycle", "toggle":
+		mode := nextMode[readMode()]
 		writeMode(mode)
 		resp, err = applyMode(mode)
 	case "sync":
